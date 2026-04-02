@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f7f3ea;
+  --paper-strong: #efe6d4;
+  --ink: #122023;
+  --muted: #55656b;
+  --line: rgba(18, 32, 35, 0.12);
+  --teal: #0f766e;
+  --teal-soft: #d2f2ee;
+  --gold: #f2bf74;
+  --coral: #e07a5f;
+  --card: rgba(255, 255, 255, 0.78);
+  --shadow: 0 30px 80px rgba(18, 32, 35, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at top left, rgba(242, 191, 116, 0.28), transparent 28%),
+    radial-gradient(circle at top right, rgba(15, 118, 110, 0.16), transparent 24%),
+    linear-gradient(180deg, #fcfaf4 0%, var(--paper) 44%, #f4efe4 100%);
+  font-family: var(--font-body), sans-serif;
+}
+
+body::before,
+body::after {
+  position: fixed;
+  inset: auto;
+  content: "";
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 9999px;
+  filter: blur(18px);
+  opacity: 0.45;
+}
+
+body::before {
+  top: 6rem;
+  right: 6rem;
+  width: 16rem;
+  height: 16rem;
+  background: rgba(15, 118, 110, 0.12);
+}
+
+body::after {
+  bottom: 10rem;
+  left: 3rem;
+  width: 12rem;
+  height: 12rem;
+  background: rgba(224, 122, 95, 0.16);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading), sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.glass-panel {
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.grid-wash {
+  background-image:
+    linear-gradient(rgba(18, 32, 35, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 32, 35, 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.fade-in-up {
+  animation: fade-in-up 500ms ease-out both;
+}
+
+.pulse-line {
+  animation: pulse-line 1.3s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-line {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}
