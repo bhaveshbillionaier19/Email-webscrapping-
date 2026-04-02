@@ -150,7 +150,11 @@ export default function LeadAgentDashboard() {
     } catch (submitError) {
       setResults([]);
       setAgentMeta(null);
-      setError(submitError.message || "Unable to run the agent.");
+      setError(
+        submitError.message === "Failed to fetch"
+          ? "Could not reach the backend API. Check NEXT_PUBLIC_API_BASE_URL on the frontend and FRONTEND_ORIGIN/CORS on the backend."
+          : submitError.message || "Unable to run the agent.",
+      );
     } finally {
       setLoading(false);
     }

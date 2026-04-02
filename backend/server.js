@@ -18,11 +18,32 @@ function toNumber(value, fallback) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-const allowedOrigin = process.env.FRONTEND_ORIGIN;
+function normalizeOrigin(origin) {
+  return origin?.trim().replace(/\/$/, "");
+}
+
+const allowedOrigins = (process.env.FRONTEND_ORIGIN || "")
+  .split(",")
+  .map((origin) => normalizeOrigin(origin))
+  .filter(Boolean);
 
 app.use(
   cors({
-    origin: allowedOrigin ? [allowedOrigin] : true,
+    origin(origin, callback) {
+      const normalizedOrigin = normalizeOrigin(origin);
+
+      if (!normalizedOrigin || allowedOrigins.length === 0) {
+        callback(null, true);
+        return;
+      }
+
+      if (allowedOrigins.includes(normalizedOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${normalizedOrigin} is not allowed by CORS.`));
+    },
   }),
 );
 app.use(express.json({ limit: "1mb" }));
