@@ -337,6 +337,7 @@ function buildFinalReason(contextBase, agentState) {
 
 function buildAlerts({
   videosFound,
+  noMoreVideosAvailable,
   uniqueChannelsFound,
   fetchedChannels,
   eligibleChannels,
@@ -351,6 +352,14 @@ function buildAlerts({
       type: "warning",
       title: "No videos found",
       message: "The YouTube search did not return any videos for this keyword. Try a broader query.",
+    });
+  }
+
+  if (noMoreVideosAvailable) {
+    alerts.push({
+      type: "info",
+      title: "No more new videos available",
+      message: "This query has no additional unseen YouTube pages left in local state. Reset state.json if you want to start over.",
     });
   }
 
@@ -407,7 +416,7 @@ export async function runAgent(
     maxLinksPerChannel = 5,
   } = {},
 ) {
-  const videos = await searchVideos(query, maxVideos);
+  const { videos, pagination } = await searchVideos(query, maxVideos);
   const videosByChannel = new Map();
 
   for (const video of videos) {
@@ -426,6 +435,7 @@ export async function runAgent(
     Math.max(1, maxChannelsPerRun),
   );
   const results = [];
+  const seenEmails = new Set();
   const channelReports = [];
   const skippedChannels = [];
 
@@ -592,7 +602,12 @@ export async function runAgent(
     }
 
     if (chosenResult) {
-      results.push(chosenResult);
+      const emailKey = chosenResult.email.toLowerCase();
+
+      if (!seenEmails.has(emailKey)) {
+        seenEmails.add(emailKey);
+        results.push(chosenResult);
+      }
     } else {
       report.status = "no_email_found";
       report.finalReason = buildFinalReason(contextBase, agentState);
@@ -603,6 +618,7 @@ export async function runAgent(
 
   const alerts = buildAlerts({
     videosFound: videos.length,
+    noMoreVideosAvailable: pagination.noMoreVideosAvailable,
     uniqueChannelsFound: channelIds.length,
     fetchedChannels: channels.length,
     eligibleChannels: eligibleChannels.length,
@@ -617,6 +633,10 @@ export async function runAgent(
       query,
       maxVideosUsed: maxVideos,
       videosFound: videos.length,
+      usedPageToken: pagination.usedPageToken,
+      nextPageToken: pagination.nextPageToken,
+      seenVideosCount: pagination.seenVideosCount,
+      noMoreVideosAvailable: pagination.noMoreVideosAvailable,
       uniqueChannelsFound: channelIds.length,
       channelsFetched: channels.length,
       channelsMatchingFilters: eligibleChannels.length,

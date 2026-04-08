@@ -1,5 +1,6 @@
 import axios from "axios";
 import { extractLinks } from "./email.js";
+import { loadState, saveState } from "./stateManager.js";
 
 const youtubeApi = axios.create({
   baseURL: "https://www.googleapis.com/youtube/v3",
@@ -42,8 +43,33 @@ function chunk(values, size) {
   return chunks;
 }
 
+export function filterNewVideos(videos = [], seenVideos = []) {
+  const seenVideoSet = new Set(seenVideos);
+  return videos.filter((video) => video.videoId && !seenVideoSet.has(video.videoId));
+}
+
 export async function searchVideos(query, maxResults = 10) {
   const apiKey = ensureYoutubeKey();
+  const state = await loadState();
+  const queryState = state[query] ?? {
+    nextPageToken: null,
+    seenVideos: [],
+  };
+
+  if (queryState.nextPageToken === null && queryState.seenVideos.length > 0) {
+    console.log("No more new videos available");
+    return {
+      videos: [],
+      pagination: {
+        query,
+        usedPageToken: null,
+        nextPageToken: null,
+        seenVideosCount: queryState.seenVideos.length,
+        noMoreVideosAvailable: true,
+      },
+    };
+  }
+
   let searchResponse;
 
   try {
@@ -54,6 +80,7 @@ export async function searchVideos(query, maxResults = 10) {
         type: "video",
         part: "snippet",
         maxResults,
+        ...(queryState.nextPageToken ? { pageToken: queryState.nextPageToken } : {}),
       },
     });
   } catch (error) {
@@ -61,12 +88,32 @@ export async function searchVideos(query, maxResults = 10) {
   }
 
   const searchItems = searchResponse.data.items ?? [];
+  const responseNextPageToken = searchResponse.data.nextPageToken ?? null;
   const videoIds = searchItems
     .map((item) => item.id?.videoId)
     .filter(Boolean);
 
+  state[query] = {
+    nextPageToken: responseNextPageToken,
+    seenVideos: unique([...queryState.seenVideos, ...videoIds]),
+  };
+  await saveState(state);
+
   if (videoIds.length === 0) {
-    return [];
+    if (!responseNextPageToken) {
+      console.log("No more new videos available");
+    }
+
+    return {
+      videos: [],
+      pagination: {
+        query,
+        usedPageToken: queryState.nextPageToken,
+        nextPageToken: responseNextPageToken,
+        seenVideosCount: state[query].seenVideos.length,
+        noMoreVideosAvailable: !responseNextPageToken,
+      },
+    };
   }
 
   let detailsResponse;
@@ -87,7 +134,7 @@ export async function searchVideos(query, maxResults = 10) {
     (detailsResponse.data.items ?? []).map((item) => [item.id, item]),
   );
 
-  return searchItems.map((item) => {
+  const mappedVideos = searchItems.map((item) => {
     const videoId = item.id?.videoId;
     const detail = detailsMap.get(videoId);
     const snippet = detail?.snippet ?? item.snippet ?? {};
@@ -101,6 +148,23 @@ export async function searchVideos(query, maxResults = 10) {
       videoUrl: videoId ? `https://www.youtube.com/watch?v=${videoId}` : null,
     };
   });
+
+  const newVideos = filterNewVideos(mappedVideos, queryState.seenVideos);
+
+  if (newVideos.length === 0 && !responseNextPageToken) {
+    console.log("No more new videos available");
+  }
+
+  return {
+    videos: newVideos,
+    pagination: {
+      query,
+      usedPageToken: queryState.nextPageToken,
+      nextPageToken: responseNextPageToken,
+      seenVideosCount: state[query].seenVideos.length,
+      noMoreVideosAvailable: newVideos.length === 0 && !responseNextPageToken,
+    },
+  };
 }
 
 export async function getChannelStats(channelIds = []) {
